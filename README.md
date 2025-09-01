@@ -52,7 +52,7 @@ This project implements a Web Server with FastAPI to monitor Raspberry Pi data, 
 
 4. Run the main app:
     ```bash
-    run app.py
+    run server.py
 
 ## 🧑‍💻 Contribution
 

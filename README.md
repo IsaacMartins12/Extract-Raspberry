@@ -1,6 +1,6 @@
 # Extract-Raspberry
 
-![Alt text](./images/image_2.png)
+![Alt text](./rasp.jfif)
 
 ## 📋 Description
 

@@ -18,7 +18,12 @@ from security import Authentication
 
 @asynccontextmanager
 async def lifespan(application):
-    application.state.authentication = Authentication.load()
+    mode = os.environ.get('EXTRACT_MODE', 'simple')
+    if mode not in ('simple', 'protected'):
+        raise RuntimeError('EXTRACT_MODE deve ser simple ou protected.')
+    application.state.protected = mode == 'protected'
+    application.state.authentication = Authentication.load() if application.state.protected else None
+    application.openapi_schema = None
     painel.init_db()
     with painel.LOCK:
         painel.LATEST = None
@@ -32,16 +37,17 @@ async def lifespan(application):
         collector.join(timeout=5)
 
 
-app = FastAPI(title="Extract-Raspberry", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="Extract-Raspberry", version="2.2.0", lifespan=lifespan)
 
 
 def secured_openapi():
     if not app.openapi_schema:
         schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
-        schema.setdefault('components', {})['securitySchemes'] = {
-            'BasicAuth': {'type': 'http', 'scheme': 'basic'},
-            'BearerAuth': {'type': 'http', 'scheme': 'bearer'}}
-        schema['security'] = [{'BasicAuth': []}, {'BearerAuth': []}]
+        if app.state.protected:
+            schema.setdefault('components', {})['securitySchemes'] = {
+                'BasicAuth': {'type': 'http', 'scheme': 'basic'},
+                'BearerAuth': {'type': 'http', 'scheme': 'bearer'}}
+            schema['security'] = [{'BasicAuth': []}, {'BearerAuth': []}]
         app.openapi_schema = schema
     return app.openapi_schema
 
@@ -51,7 +57,9 @@ app.openapi = secured_openapi
 
 @app.middleware("http")
 async def response_headers(request, call_next):
-    if request.url.scheme != 'https':
+    if not request.app.state.protected:
+        response = await call_next(request)
+    elif request.url.scheme != 'https':
         response = JSONResponse(status_code=400, content={'error': 'Use HTTPS para acessar o monitor.'})
     else:
         status = await run_in_threadpool(request.app.state.authentication.authenticate,
@@ -132,18 +140,28 @@ def system_status():
     }
 
 
-def run(default_port=8443):
+def run():
     import uvicorn
     parser = argparse.ArgumentParser(description="Extract-Raspberry: API, dashboard e histórico")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=default_port)
+    parser.add_argument('--mode', choices=['simple', 'protected'],
+                        default=os.environ.get('EXTRACT_MODE', 'simple'))
+    parser.add_argument("--port", type=int)
     parser.add_argument('--ssl-certfile', default=str(painel.ROOT / 'certs/cert.pem'))
     parser.add_argument('--ssl-keyfile', default=str(painel.ROOT / 'certs/key.pem'))
     args = parser.parse_args()
+    if args.mode not in ('simple', 'protected'):
+        parser.error('EXTRACT_MODE deve ser simple ou protected.')
+    os.environ['EXTRACT_MODE'] = args.mode
     logging.basicConfig(level=logging.INFO)
-    uvicorn.run(app, host=args.host, port=args.port, workers=1,
-                ssl_certfile=args.ssl_certfile, ssl_keyfile=args.ssl_keyfile,
-                proxy_headers=False, server_header=False)
+    options = dict(host=args.host, port=args.port if args.port is not None else
+                   (8443 if args.mode == 'protected' else 8080), workers=1,
+                   proxy_headers=False, server_header=False)
+    if args.mode == 'protected':
+        options.update(ssl_certfile=args.ssl_certfile, ssl_keyfile=args.ssl_keyfile)
+    else:
+        logging.warning('Modo simples: HTTP sem autenticação. Use apenas em rede de confiança.')
+    uvicorn.run(app, **options)
 
 
 if __name__ == "__main__":

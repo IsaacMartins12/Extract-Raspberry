@@ -1,5 +1,22 @@
 # HTTPS, login e API
 
+## Escolha opcional
+
+Novas instalações usam o modo simples, em `http://IP:8080`, sem credenciais ou certificado. Para escolher explicitamente, execute na pasta do clone:
+
+```bash
+sh instalar.sh --mode simple
+```
+
+Para habilitar proteção:
+
+```bash
+sudo apt install -y openssl
+sh instalar.sh --mode protected
+```
+
+O segundo comando configura HTTPS em `https://IP:8443`, senha e token. As instruções restantes deste guia se aplicam **ao modo protegido**. Trocar para o modo simples desativa autenticação e TLS, sem apagar histórico ou credenciais existentes. Atualizações sem `--mode` preservam a escolha; instalações protegidas anteriores também são preservadas. Não ative o modo simples para um serviço acessível pela internet.
+
 ## Primeira configuração
 
 O instalador pede usuário e senha (mínimo de 12 caracteres), sem exibir a senha digitada. O login do dashboard é HTTP Basic: uma janela nativa do navegador pede as credenciais. Não há formulário de cadastro ou banco de usuários. Há apenas uma identidade por instalação.

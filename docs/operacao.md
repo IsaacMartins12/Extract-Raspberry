@@ -2,7 +2,7 @@
 
 ## Da primeira versão ao histórico
 
-O projeto foi montado por SSH. Primeiro foram consultados `cat /etc/os-release` e `uname -m`, identificando Debian 13 em ARM de 64 bits. A primeira versão lia métricas sob demanda e servia uma página HTTP na porta 8080; a versão protegida atual usa HTTPS em 8443. Depois foi configurado um serviço systemd, para continuar funcionando após fechar o SSH e voltar no boot.
+O projeto foi montado por SSH. Primeiro foram consultados `cat /etc/os-release` e `uname -m`, identificando Debian 13 em ARM de 64 bits. A primeira versão lia métricas sob demanda e servia uma página HTTP na porta 8080; o modo protegido usa HTTPS em 8443 e o simples mantém HTTP em 8080. Depois foi configurado um serviço systemd, para continuar funcionando após fechar o SSH e voltar no boot.
 
 A versão atual separa a coleta da abertura da página: um coletor executa continuamente, grava histórico SQLite e a interface consulta esse histórico para desenhar gráficos. Não foi necessário conectar sensores externos; a temperatura vem do sistema da própria placa.
 
@@ -20,11 +20,12 @@ Depois, no **SSH da Raspberry**:
 
 ```bash
 sudo apt update
-sudo apt install -y python3-venv openssl
+sudo apt install -y python3-venv
+# Para instalar no modo protegido, também instale openssl.
 sh ~/painel-rasp-atualizacao/instalar.sh
 ```
 
-Se a versão manual estiver ocupando o terminal e a porta 8443, encerre-a com `Ctrl+C` antes da instalação. Após atualizar, pressione `Ctrl+F5` no navegador.
+Se a versão manual estiver ocupando o terminal e a porta escolhida (8080 ou 8443), encerre-a com `Ctrl+C` antes da instalação. Após atualizar, pressione `Ctrl+F5` no navegador.
 
 O instalador desta versão funciona tanto com o serviço existente quanto em uma primeira instalação. Ele deve ser executado como usuário normal, sem prefixar `sudo`.
 
@@ -121,7 +122,7 @@ Ao voltar à versão anterior que executava apenas `painel.py`, altere também o
 
 | Sintoma | O que verificar |
 | --- | --- |
-| Página não abre | Serviço ativo, `hostname -I`, porta 8443 e conectividade entre os aparelhos |
+| Página não abre | Serviço ativo, `hostname -I`, porta escolhida (8080 ou 8443) e conectividade entre os aparelhos |
 | Endereço deixou de funcionar após reboot | IP pode ter mudado; confira novamente ou configure reserva DHCP no roteador |
 | `Address already in use` | Outra instância ocupa a porta: `sudo ss -ltnp 'sport = :8443'`; encerre a instância manual correta |
 | Gráfico vazio após instalar | Aguarde cerca de um minuto; a coleta começa na instalação |
@@ -141,12 +142,16 @@ Se necessário, instale `curl` para verificar a API: `sudo apt install -y curl`.
 
 Você pode fechar o navegador e sair do SSH. O serviço segue coletando enquanto a Raspberry estiver ligada. Uma reinicialização normal volta a iniciar o monitor. As gravações usam o armazenamento da própria placa; mantenha alimentação estável e backup quando o histórico for importante.
 
-O servidor exige credenciais e HTTPS. O certificado local precisa ser verificado e confiado pelos clientes; veja `seguranca.md`. Não exponha a porta no roteador sem projetar o acesso remoto e o controle de rede.
+No modo protegido, o servidor exige credenciais e HTTPS. No simples, o acesso é HTTP sem autenticação e deve ficar restrito à rede de confiança. O certificado local precisa ser verificado e confiado pelos clientes; veja `seguranca.md`. Não exponha a porta no roteador sem projetar o acesso remoto e o controle de rede.
 
 ## Migrar a API antiga para o serviço
 
-`/status` continua disponível e coleta a cada requisição, com o JSON original. O novo endereço é `https://IP_DA_RASPBERRY:8443/status`. Clientes antigos devem validar o certificado e enviar usuário/senha ou token Bearer; os endereços HTTP anteriores deixam de funcionar.
+`/status` continua disponível e coleta a cada requisição, com o JSON original. No simples, use `http://IP_DA_RASPBERRY:8080/status`, sem credenciais. No protegido, use `https://IP_DA_RASPBERRY:8443/status`, validando o certificado e enviando usuário/senha ou token Bearer. Só o endereço do modo selecionado fica ativo.
 
 O histórico já existente em `~/painel-rasp/historico.sqlite3` é reaproveitado; a estrutura da tabela não mudou. Nenhuma alteração chega automaticamente à placa quando o código é publicado no GitHub. Transfira os arquivos ou atualize o clone e execute o instalador.
 
 As credenciais e os certificados são locais e não fazem parte do backup de código do instalador. Guarde uma cópia privada protegida de `auth.json` e da chave se precisar recuperar essa identidade. Trocar senha/token não altera os dados históricos. Ao restaurar uma versão anterior ao suporte de segurança, não reutilize sua configuração de serviço como se ela ainda garantisse autenticação e TLS; prefira manter a versão protegida.
+
+## Trocar entre os modos
+
+Na pasta do clone, use `sh instalar.sh --mode simple` para HTTP sem senha, ou `sh instalar.sh --mode protected` para HTTPS com autenticação (exige OpenSSL). O instalador reinicia o serviço na porta adequada e preserva o histórico e as credenciais. Rodar sem opção mantém o modo atual. Não é preciso desinstalar nem apagar certificados para voltar ao modo simples.

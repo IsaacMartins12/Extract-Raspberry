@@ -34,7 +34,7 @@ Configure `git config user.name` e `git config user.email` com seus dados se o G
 
 Após o push, abra um pull request comparando sua branch com `main`, confira o diff e os testes e integre quando estiver pronto. Um push no GitHub não instala o programa na Raspberry.
 
-O `.gitignore` exclui o histórico SQLite, WAL/SHM, backups, ambiente virtual, caches, arquivos `.env`, `auth.json`, certificados e chaves privadas. Ele não remove arquivos já rastreados. Não é necessário copiar o histórico da placa para publicar o projeto. Preserve `LICENSE` e o aviso de copyright existente.
+O `.gitignore` exclui o histórico SQLite, WAL/SHM, backups, ambiente virtual, caches, arquivos `.env`, `mode.json`, `auth.json`, certificados e chaves privadas. Ele não remove arquivos já rastreados. Não é necessário copiar o histórico da placa para publicar o projeto. Preserve `LICENSE` e o aviso de copyright existente.
 
 ## Atualizar a Raspberry depois da integração
 
@@ -50,11 +50,11 @@ Antes da integração em `main`, para testar a branch desta atualização:
 
 ```bash
 git fetch origin
-git switch --track origin/autenticacao-https
+git switch --track origin/modos-simples-protegido
 sh instalar.sh
 ```
 
-Se a branch já existir localmente, use `git switch autenticacao-https` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
+Se a branch já existir localmente, use `git switch modos-simples-protegido` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
 
 ## Referências
 

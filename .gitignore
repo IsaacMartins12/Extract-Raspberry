@@ -22,6 +22,7 @@ Thumbs.db
 
 # Credenciais e TLS locais (nunca publicar)
 auth.json
+mode.json
 .auth-*
 certs/
 *.pem

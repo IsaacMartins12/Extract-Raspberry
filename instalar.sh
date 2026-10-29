@@ -12,20 +12,28 @@ esac
 test -f "$source_dir/index.html"
 test -f "$source_dir/server.py"
 test -f "$source_dir/requirements.txt"
+test -f "$source_dir/security.py"
+test -f "$source_dir/configurar_seguranca.py"
+command -v openssl > /dev/null
 python3 -c 'import sqlite3'
-python3 -m py_compile "$source_dir/painel.py" "$source_dir/server.py"
+python3 -m py_compile "$source_dir/painel.py" "$source_dir/server.py" "$source_dir/security.py" "$source_dir/configurar_seguranca.py"
 mkdir -p "$target_dir"
 # Prepare as dependências antes de interromper o serviço atual.
 python3 -m venv "$target_dir/.venv"
 "$target_dir/.venv/bin/python" -m pip install -r "$source_dir/requirements.txt"
 backup_dir="$target_dir/backup-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$backup_dir"
-for file in painel.py server.py index.html requirements.txt; do
+for file in painel.py server.py security.py configurar_seguranca.py index.html requirements.txt; do
     if [ -f "$target_dir/$file" ]; then
         cp "$target_dir/$file" "$backup_dir/$file"
     fi
 done
 sudo -v
+if [ "$source_dir" != "$target_dir" ]; then
+    cp "$source_dir/security.py" "$source_dir/configurar_seguranca.py" "$target_dir/"
+fi
+# Configuração interativa antes de parar a versão instalada.
+"$target_dir/.venv/bin/python" "$target_dir/configurar_seguranca.py"
 if sudo systemctl cat painel-rasp.service > /dev/null 2>&1; then
     sudo systemctl stop painel-rasp.service
 fi
@@ -40,7 +48,7 @@ After=network.target
 [Service]
 User=$(id -un)
 WorkingDirectory=$target_dir
-ExecStart=$target_dir/.venv/bin/python $target_dir/server.py --port 8080
+ExecStart=$target_dir/.venv/bin/python $target_dir/server.py --port 8443
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

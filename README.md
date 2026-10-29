@@ -1,97 +1,78 @@
 # Extract-Raspberry · API e monitor de desempenho
 
-Painel web em português para acompanhar a temperatura e o uso de recursos de uma Raspberry Pi, com histórico local e gráficos no navegador. Não exige sensores externos ou serviços na nuvem. Usa FastAPI, Uvicorn e psutil em um ambiente virtual Python.
+Monitor de recursos de uma Raspberry Pi, com dashboard em português, API JSON, histórico SQLite, autenticação e HTTPS local. Não exige sensores externos ou serviços na nuvem.
 
-A evolução com dashboard foi desenvolvida com uma Raspberry Pi 4 de 4 GB, acessada por SSH, executando Debian GNU/Linux 13 (trixie), arquitetura `aarch64`. A primeira versão do painel foi confirmada em funcionamento nessa placa pelo usuário. O código de histórico passou por verificações locais; isso não representa uma certificação para outras placas ou distribuições.
-
-O projeto original oferecia `GET /status` com uma leitura a cada requisição. Esta versão mantém essa API e acrescenta dashboard, coleta contínua e histórico, preservando a licença MIT original.
+A evolução do projeto foi feita para uma Raspberry Pi 4 de 4 GB com Debian 13 (trixie), ARM de 64 bits. Usa FastAPI, Uvicorn e psutil. O dashboard inicial foi confirmado na placa; autenticação e HTTPS passaram por testes locais, incluindo conexão TLS real. A instalação atualizada ainda precisa ser validada na Raspberry.
 
 ## Funcionalidades
 
-- API original `GET /status`, com os mesmos campos JSON e leitura sob demanda.
-- APIs `GET /api` e `GET /api/history` para a interface e outras integrações.
-- Documentação interativa em `/docs` e esquema OpenAPI em `/openapi.json`.
-- Leitura de temperatura do processador, CPU, RAM, disco da partição `/` e tempo ligada.
-- Gráficos de temperatura, CPU e RAM para 1 hora, 24 horas, 7 dias e 30 dias.
-- Coleta independente do navegador e da sessão SSH.
-- Persistência em SQLite e inicialização automática com systemd.
-- Interface responsiva com gráficos em Canvas, sem CDN ou dependências externas.
-- Histórico com retenção de aproximadamente 30 dias.
+- Dashboard com temperatura, CPU, RAM, disco da partição `/` e tempo ligada.
+- Gráficos de temperatura, CPU e RAM: 1 hora, 24 horas, 7 dias e 30 dias.
+- Coleta a cada ~5 segundos, gravação a cada ~30 segundos e retenção de ~30 dias.
+- Coleta independente do navegador ou SSH e inicialização automática com systemd.
+- Login HTTP Basic pelo próprio navegador e token Bearer para integrações.
+- Senha protegida com PBKDF2; token armazenado como hash; HTTPS obrigatório.
+- Certificado local gerado no dispositivo, sem domínio obrigatório.
+- Interface Canvas sem CDN. A documentação interativa `/docs` usa assets externos do FastAPI.
 
-O disco e o tempo ligada aparecem nos cartões atuais; não são gravados no histórico nesta versão.
+Disco e tempo ligada aparecem nos cartões atuais, mas não são gravados no histórico.
 
-## Como funciona
+## Instalar na Raspberry
 
-```mermaid
-flowchart LR
-    Linux["Linux: /proc e /sys"] --> Coletor["Coletor Python · ~5 s"]
-    Coletor --> Atual["Última leitura em memória"]
-    Coletor --> Banco["SQLite · ~30 s"]
-    Atual --> API["FastAPI + Uvicorn · porta 8080"]
-    Banco --> API
-    API --> Navegador["Navegador: cartões e gráficos"]
-    Systemd["systemd"] --> Coletor
-```
-
-| Operação | Frequência aproximada |
-| --- | --- |
-| Coletar métricas e atualizar cartões abertos | 5 segundos |
-| Gravar histórico e atualizar gráficos abertos | 30 segundos |
-| Remover registros com mais de 30 dias | Na primeira gravação e a cada 24 horas |
-
-Os intervalos incluem o tempo de processamento e não são uma programação de tempo real. Após reiniciar, o serviço volta a coletar e usa o mesmo banco. Não há leituras enquanto a placa está desligada. A página deixa de ligar pontos separados por lacunas grandes; interrupções curtas podem ficar ocultas pela agregação.
-
-## Requisitos
-
-- Raspberry Pi com Linux, Python 3.10 ou mais recente e módulo padrão `sqlite3`.
-- systemd e permissão para executar comandos administrativos com `sudo`.
-- Acesso por SSH ou terminal local e conectividade de rede com o navegador.
-- Espaço de armazenamento para o programa e o banco de dados.
-- Git, se a instalação for feita por clone do repositório.
-- Pacote `python3-venv` e acesso à internet durante a instalação das dependências.
-
-O monitor coleta informações do Linux. O backend não funciona como monitor do Windows. A temperatura depende da existência de `/sys/class/thermal/thermal_zone0/temp`; na ausência desse arquivo, aparece como indisponível. Em outras placas, confirme se essa zona térmica corresponde ao processador.
-
-## Instalar do zero na Raspberry
-
-Execute os comandos abaixo **no SSH da Raspberry**, como seu usuário normal. Use o repositório abaixo após integrar a atualização à branch principal. Para uma branch em revisão, faça checkout dela antes de instalar.
+Execute no SSH como usuário normal, **sem colocar sudo antes do instalador**. Estes comandos usam `main` após a integração da atualização:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-venv git
+sudo apt install -y python3 python3-venv git openssl
 mkdir -p ~/src
 git clone https://github.com/IsaacMartins12/Extract-Raspberry.git ~/src/monitor-rasp
 cd ~/src/monitor-rasp
 sh instalar.sh
 ```
 
-Não execute o instalador inteiro com `sudo`: ele usa sua pasta pessoal e solicita os privilégios necessários internamente.
+Para testar a atualização antes do merge, após clonar use `git switch --track origin/autenticacao-https` antes de instalar.
 
-Se houver um processo manual ocupando a porta 8080, encerre-o com `Ctrl+C` antes de instalar.
+O instalador prepara o ambiente virtual em `~/painel-rasp/.venv`, pede usuário e senha com pelo menos 12 caracteres, mostra um token de API uma única vez e gera um certificado válido por 365 dias. Guarde o token em um gerenciador de senhas. Não compartilhe o terminal ou seus logs nesse passo.
 
-O instalador:
+Ele faz backup dos arquivos de código anteriores, preserva `historico.sqlite3` e configura o serviço `painel-rasp` na porta **8443**. Nas reinstalações, mantém as credenciais e o certificado existentes. Se estiver executando o programa manualmente, encerre-o antes de instalar. A pasta pessoal não deve conter espaços.
 
-1. Verifica Python, SQLite, sintaxe dos programas e presença da interface.
-2. Prepara `~/painel-rasp/.venv` e instala `requirements.txt` antes de parar o serviço.
-3. Cria `~/painel-rasp` e faz backup dos arquivos anteriores, se existirem.
-4. Para o serviço existente e copia o backend, a interface e a lista de dependências.
-5. Configura `/etc/systemd/system/painel-rasp.service` para executar com seu usuário.
-6. Habilita o início no boot, inicia o serviço e mostra o status.
-
-Ele preserva o banco existente. A pasta pessoal não deve conter espaços, limitação do instalador atual. As cópias de código do instalador não equivalem a um backup do histórico.
-
-Confira o serviço e descubra o endereço da placa:
+Depois:
 
 ```bash
 systemctl status painel-rasp --no-pager
 hostname -I
 ```
 
-Abra `http://IP_DA_RASPBERRY:8080` no computador ou celular da mesma rede. Aguarde aproximadamente um minuto para ter os primeiros pontos. O histórico começa com a instalação; não é possível recuperar métricas anteriores à coleta.
+Acesse **`https://IP_DA_RASPBERRY:8443/`**. O navegador solicitará usuário e senha. Como o certificado é local, é necessário estabelecer confiança nele nos aparelhos clientes; veja o [guia de segurança](docs/seguranca.md). HTTPS cifra a conexão, mas um certificado autoassinado não comprova a identidade sem essa verificação.
 
-## Atualizar uma instalação existente
+Aguarde cerca de um minuto pelos primeiros pontos. O histórico começa com a coleta e é local a cada instalação. Sem sensores extras: a temperatura vem de `/sys` na própria placa.
 
-Se já estiver usando o serviço e tiver clonado o projeto em `~/src/monitor-rasp`:
+## Dashboard e API na mesma aplicação
+
+Todas as rotas exigem HTTPS e credenciais:
+
+| Rota | Função |
+| --- | --- |
+| `/` | Dashboard, com login nativo do navegador |
+| `/status` | API original: nova leitura a cada requisição (~1 segundo para CPU) |
+| `/api` | Última leitura do coletor, sem nova coleta |
+| `/api/history?period=24h` | Histórico; aceita `1h`, `24h`, `7d`, `30d` |
+| `/docs` | Documentação interativa da API |
+| `/openapi.json` | Esquema OpenAPI |
+
+Os campos JSON originais de `/status` permanecem iguais. Autenticação, HTTPS e a mudança de porta são alterações obrigatórias na forma de acesso. Integrações antigas precisam ser atualizadas.
+
+Exemplo local usando senha: `curl` pede a senha interativamente. Use o usuário configurado e o IP incluído no certificado:
+
+```bash
+curl --cacert ~/painel-rasp/certs/cert.pem --user admin https://127.0.0.1:8443/status
+```
+
+Para automação, envie `Authorization: Bearer SEU_TOKEN` em um cabeçalho HTTP. Não envie token na URL. Veja exemplos sem gravar segredos no histórico do shell no [guia de segurança](docs/seguranca.md#consultar-com-token-de-api).
+
+## Atualizar
+
+No clone da Raspberry:
 
 ```bash
 cd ~/src/monitor-rasp
@@ -99,111 +80,72 @@ git pull --ff-only
 sh instalar.sh
 ```
 
-Se o Git indicar alterações locais ou divergência, resolva isso antes de instalar. O comando não força a substituição de alterações no clone.
-
-Depois, atualize a página com `Ctrl+F5`. Para instalar a partir do computador Windows, veja o [guia de transferência por SSH](docs/operacao.md#transferir-do-windows-para-a-raspberry).
+O instalador não apaga o histórico nem troca automaticamente a senha ou o token. O endereço anterior `http://IP:8080` deixa de funcionar; use HTTPS em 8443 e atualize seus consumidores da API. Uma publicação no GitHub não atualiza a Raspberry automaticamente.
 
 ## Executar manualmente
 
-Para desenvolvimento, sem instalar o serviço:
-
 ```bash
-cd ~/src/monitor-rasp
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python configurar_seguranca.py
 .venv/bin/python server.py
 ```
 
-A execução manual de `server.py` usa a porta **8000**, como no projeto antigo. Para usar 8080, execute `.venv/bin/python server.py --port 8080`. O comando `.venv/bin/python painel.py` também inicia a aplicação na porta 8080 para facilitar a migração.
+O padrão agora é HTTPS em 8443. `python painel.py` inicia a mesma aplicação. A configuração e o banco são lidos da pasta do código; um clone tem seus próprios arquivos, separados da instalação em `~/painel-rasp`. Se o serviço já ocupar 8443, pare-o antes do teste ou escolha outra porta com `--port`. Certificado e chave podem ser especificados com `--ssl-certfile` e `--ssl-keyfile`.
 
-Encerre com `Ctrl+C`. O processo manual grava o banco na pasta do script e depende do terminal aberto. Se for executar manualmente na porta 8080 e o serviço já estiver ativo, pare-o antes com `sudo systemctl stop painel-rasp` e inicie novamente após o teste. O banco do clone e o banco instalado em `~/painel-rasp` são arquivos distintos.
+Use um único processo/worker para não duplicar coletores. A execução sem credenciais válidas ou sem certificado/chave falha em vez de abrir acesso sem proteção. Não há modo HTTP anônimo nesta versão.
 
-## Arquivos do projeto
-
-```text
-Extract-Raspberry/
-├── server.py          # FastAPI: API original, dashboard e histórico
-├── painel.py          # Coletor e persistência SQLite
-├── requirements.txt   # Dependências da aplicação
-├── requirements-dev.txt # Dependências para os testes
-├── LICENSE            # MIT original do projeto
-├── index.html         # Interface e gráficos em Canvas
-├── instalar.sh        # Instalação e atualização do serviço
-├── README.md
-├── .gitignore         # Exclui bancos, backups e configurações locais
-├── .gitattributes     # Preserva LF nos scripts para Linux
-├── docs/
-│   ├── arquitetura.md # Métricas, agregação, API e limitações
-│   ├── operacao.md    # Serviço, backup, recuperação e problemas comuns
-│   └── github.md      # Como publicar e manter o repositório
-└── tests/
-    └── test_painel.py # Verificações de API, contrato e persistência
-```
-
-Após a instalação, `~/painel-rasp` também terá `historico.sqlite3`, possíveis arquivos auxiliares `-wal` e `-shm` e pastas `backup-*`. Esses dados locais ficam fora do Git.
-
-## Comandos úteis
+## Operação
 
 ```bash
-# Status e logs
 systemctl status painel-rasp --no-pager
 journalctl -u painel-rasp -n 50 --no-pager
-
-# Reiniciar, parar e iniciar
 sudo systemctl restart painel-rasp
 sudo systemctl stop painel-rasp
 sudo systemctl start painel-rasp
-
-# Consultar a API na própria Raspberry
-curl http://127.0.0.1:8080/api
-curl 'http://127.0.0.1:8080/api/history?period=1h'
 ```
 
-Se `curl` não estiver instalado: `sudo apt install -y curl`.
+Fechar o SSH ou o navegador não para o serviço. Reiniciar a Pi retoma a coleta com o banco anterior. Desligada, ela não coleta. Os gráficos separam lacunas grandes; pequenas interrupções podem ficar ocultas na agregação.
 
-## Verificar o código
-
-Na raiz do projeto:
+## Verificação do código
 
 ```bash
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m py_compile painel.py server.py
+.venv/bin/python -m py_compile server.py painel.py security.py configurar_seguranca.py
 sh -n instalar.sh
 ```
 
-Os testes usam banco temporário e cliente HTTP de teste para verificar retenção, agregação, persistência, respostas HTTP e o contrato original de `/status`. Não exercitam o hardware real nem substituem a conferência dos gráficos no navegador. A operação do systemd precisa ser validada na Raspberry.
+Os testes cobrem API original, persistência, retenção, agregação, autenticação, bloqueio HTTP e handshake HTTPS real. O teste TLS requer `openssl` no PATH; caso ausente, é marcado como ignorado. Os testes não substituem a validação no hardware e do systemd real.
 
-## Acesso e limitações
+## Arquivos
 
-O servidor escuta em `0.0.0.0:8080`, sem autenticação e sem HTTPS. É um protótipo para uma rede de confiança; não encaminhe essa porta no roteador para a internet. O servidor é Uvicorn com FastAPI. Use um único processo/worker para não duplicar os coletores. Uma implantação exposta exige configuração adicional de autenticação, TLS e controle de acesso.
+| Arquivo | Responsabilidade |
+| --- | --- |
+| `server.py` | FastAPI, rotas, proteção e execução HTTPS |
+| `painel.py` | Coleta Linux e histórico SQLite |
+| `security.py` | Verificação de senha/token e limitação de tentativas |
+| `configurar_seguranca.py` | Configurar credenciais e certificado local |
+| `index.html` | Dashboard e gráficos Canvas |
+| `instalar.sh` | Ambiente virtual, instalação e systemd |
+| `requirements.txt`, `requirements-dev.txt` | Dependências da aplicação e dos testes |
+| `tests/` | Testes automatizados |
+| `docs/` | Arquitetura, segurança, operação e publicação |
 
-Esta versão não tem alertas, detecção de throttling, análise por processo ou histórico de disco. Médias dos períodos maiores suavizam picos, e gravar uma amostra a cada 30 segundos pode perder variações breves. O último trecho ainda não gravado não sobrevive ao encerramento do processo.
+Arquivos gerados: `auth.json` (hashes), `certs/` (certificado e chave privada), `historico.sqlite3` e auxiliares WAL/SHM, `.venv/` e `backup-*`. Todos ficam fora do Git; não publique cópias em outro formato.
 
-## Consumir a API
+## Limitações
 
-Com o serviço instalado:
+A instalação padrão é para sua rede local. HTTPS e senha não configuram um domínio, certificado público, firewall ou acesso pela internet. A proteção de tentativas é local, em memória, e não substitui uma defesa contra ataques distribuídos. O login Basic é guardado pelo navegador; não há botão de logout, contas múltiplas ou permissões por usuário. O token tem acesso de leitura às rotas protegidas.
 
-```bash
-# Leitura nova sob demanda, compatível com a API antiga (~1 segundo para CPU)
-curl http://127.0.0.1:8080/status
+O certificado local exige renovação manual antes de 365 dias e nova emissão se o endereço não estiver em seus SANs. A senha e o token não expiram automaticamente. O histórico mantém apenas amostras e médias: não registra todos os picos. Não há alertas, histórico de disco, análise por processo ou detecção de throttling.
 
-# Última leitura já disponível no coletor
-curl http://127.0.0.1:8080/api
+## Guias
 
-# Histórico agregado
-curl "http://127.0.0.1:8080/api/history?period=24h"
-```
-
-Na execução manual padrão, troque `8080` por `8000`. Os campos antigos permanecem em `/status`; `/api` tem um formato próprio para o dashboard.
-
-## Documentação detalhada
-
-- [Arquitetura, métricas e API](docs/arquitetura.md).
-- [Operação, backup e resolução de problemas](docs/operacao.md).
-- [Publicação no GitHub](docs/github.md).
-
-O procedimento segue as referências oficiais de [Linux `/proc`](https://www.kernel.org/doc/html/latest/filesystems/proc.html), [SQLite WAL](https://www.sqlite.org/wal.html), [systemd](https://www.freedesktop.org/software/systemd/man/258/systemd.service.html) e [publicação de código no GitHub](https://docs.github.com/en/migrations/importing-source-code/using-the-command-line-to-import-source-code/adding-locally-hosted-code-to-github).
+- [Arquitetura, cálculos e API](docs/arquitetura.md).
+- [HTTPS, credenciais e token](docs/seguranca.md).
+- [Manutenção, backup e problemas comuns](docs/operacao.md).
+- [Desenvolvimento e GitHub](docs/github.md).
 
 ## Licença
 

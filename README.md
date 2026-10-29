@@ -28,10 +28,10 @@ sudo apt install -y python3 python3-venv git
 mkdir -p ~/src
 git clone https://github.com/IsaacMartins12/Extract-Raspberry.git ~/src/monitor-rasp
 cd ~/src/monitor-rasp
-sh instalar.sh
+sh scripts/instalar.sh
 ```
 
-Para testar a atualização antes do merge, após clonar use `git switch --track origin/modos-simples-protegido` antes de instalar.
+Para testar a atualização antes do merge, após clonar use `git switch --track origin/reorganiza-estrutura` antes de instalar.
 
 O instalador prepara o ambiente virtual em `~/painel-rasp/.venv`, faz backup do código anterior e configura o início automático com systemd, preservando o histórico. Na primeira instalação, o padrão é **simples**, sem pedir senha ou gerar certificado. Em atualizações, o modo atual é preservado. Uma instalação protegida anterior sem `mode.json` também permanece protegida.
 
@@ -41,11 +41,11 @@ Na pasta do clone, execute como usuário normal:
 
 ```bash
 # HTTP sem senha ou certificado
-sh instalar.sh --mode simple
+sh scripts/instalar.sh --mode simple
 
 # HTTPS com usuário, senha e token de API
 sudo apt install -y openssl
-sh instalar.sh --mode protected
+sh scripts/instalar.sh --mode protected
 ```
 
 | Modo | Endereço | Credenciais e certificado |
@@ -55,7 +55,7 @@ sh instalar.sh --mode protected
 
 Ao ativar o modo protegido pela primeira vez, escolha usuário/senha (mínimo de 12 caracteres), guarde o token mostrado uma única vez e configure a confiança no certificado local, conforme o [guia de segurança](docs/seguranca.md). A troca de modo não apaga o banco, a senha, o token ou os certificados; reativar a proteção reaproveita a configuração anterior.
 
-Rodar `sh instalar.sh` sem opções preserva o modo salvo. O modo é registrado em `~/painel-rasp/mode.json` e aplicado na unidade systemd por `--mode`. Não basta editar o JSON para alterar o processo em execução: execute o instalador. A pasta pessoal não deve conter espaços. Encerre processos manuais antes de usar a mesma porta.
+Rodar `sh scripts/instalar.sh` sem opções preserva o modo salvo. O modo é registrado em `~/painel-rasp/config/mode.json` e aplicado na unidade systemd por `--mode`. Não basta editar o JSON para alterar o processo em execução: execute o instalador. A pasta pessoal não deve conter espaços. Encerre processos manuais antes de usar a mesma porta.
 
 Depois:
 
@@ -93,7 +93,7 @@ curl "http://127.0.0.1:8080/api/history?period=24h"
 No modo protegido, exemplo local usando senha: `curl` pede a senha interativamente. Use o usuário configurado e o IP incluído no certificado:
 
 ```bash
-curl --cacert ~/painel-rasp/certs/cert.pem --user admin https://127.0.0.1:8443/status
+curl --cacert ~/painel-rasp/config/certs/cert.pem --user admin https://127.0.0.1:8443/status
 ```
 
 Para automação no modo protegido, envie `Authorization: Bearer SEU_TOKEN` em um cabeçalho HTTP. Não envie token na URL. Veja exemplos sem gravar segredos no histórico do shell no [guia de segurança](docs/seguranca.md#consultar-com-token-de-api).
@@ -105,7 +105,7 @@ No clone da Raspberry:
 ```bash
 cd ~/src/monitor-rasp
 git pull --ff-only
-sh instalar.sh
+sh scripts/instalar.sh
 ```
 
 O instalador não apaga o histórico, não troca automaticamente as credenciais e não muda o modo salvo sem uma escolha explícita. Ao trocar o modo, atualize o endereço dos seus clientes. Uma publicação no GitHub não atualiza a Raspberry automaticamente.
@@ -114,18 +114,18 @@ O instalador não apaga o histórico, não troca automaticamente as credenciais 
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python server.py
+.venv/bin/python -m pip install -r requirements/base.txt
+.venv/bin/python -m extract_raspberry
 ```
 
 O padrão manual é HTTP em 8080, sem carregar credenciais ou certificado. Para ativar proteção manualmente:
 
 ```bash
-.venv/bin/python configurar_seguranca.py
-.venv/bin/python server.py --mode protected
+.venv/bin/python -m extract_raspberry.configure_security
+.venv/bin/python -m extract_raspberry --mode protected
 ```
 
-`python painel.py` inicia a mesma aplicação. A variável `EXTRACT_MODE=protected` também seleciona proteção; `--mode` tem prioridade. A configuração e o banco são lidos da pasta do código; um clone tem seus próprios arquivos, separados da instalação em `~/painel-rasp`. Se o serviço já ocupar a porta escolhida, pare-o antes do teste ou escolha outra porta com `--port`. Certificado e chave podem ser especificados com `--ssl-certfile` e `--ssl-keyfile`.
+O ponto de entrada é `python -m extract_raspberry`; scripts Python soltos na raiz foram removidos. A variável `EXTRACT_MODE=protected` também seleciona proteção; `--mode` tem prioridade. A configuração e o banco usam os diretórios `config/` e `data/` da raiz; um clone tem seus próprios arquivos, separados da instalação em `~/painel-rasp`. Se o serviço já ocupar a porta escolhida, pare-o antes do teste ou escolha outra porta com `--port`. Certificado e chave podem ser especificados com `--ssl-certfile` e `--ssl-keyfile`.
 
 Use um único processo/worker para não duplicar coletores. No modo protegido, credenciais ou certificado/chave ausentes causam falha; o programa não recua automaticamente para o modo simples. Valores de modo inválidos também impedem o início.
 
@@ -144,29 +144,60 @@ Fechar o SSH ou o navegador não para o serviço. Reiniciar a Pi retoma a coleta
 ## Verificação do código
 
 ```bash
-.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -r requirements/dev.txt
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m py_compile server.py painel.py security.py configurar_seguranca.py
-sh -n instalar.sh
+.venv/bin/python -m compileall -q extract_raspberry
+sh -n scripts/instalar.sh
 ```
 
 Os testes cobrem API original, persistência, retenção, agregação, autenticação, bloqueio HTTP e handshake HTTPS real. O teste TLS requer `openssl` no PATH; caso ausente, é marcado como ignorado. Os testes não substituem a validação no hardware e do systemd real.
 
-## Arquivos
+## Organização do projeto
 
-| Arquivo | Responsabilidade |
-| --- | --- |
-| `server.py` | FastAPI, rotas, proteção e execução HTTPS |
-| `painel.py` | Coleta Linux e histórico SQLite |
-| `security.py` | Verificação de senha/token e limitação de tentativas |
-| `configurar_seguranca.py` | Configurar credenciais e certificado local |
-| `index.html` | Dashboard e gráficos Canvas |
-| `instalar.sh` | Ambiente virtual, instalação e systemd |
-| `requirements.txt`, `requirements-dev.txt` | Dependências da aplicação e dos testes |
-| `tests/` | Testes automatizados |
-| `docs/` | Arquitetura, segurança, operação e publicação |
+```text
+Extract-Raspberry/
+├── extract_raspberry/          # Pacote Python da aplicação
+│   ├── __main__.py             # Início: python -m extract_raspberry
+│   ├── app.py                  # FastAPI, rotas e execução do servidor
+│   ├── metrics.py              # Coletor e consultas SQLite
+│   ├── security.py             # Autenticação e proteção de tentativas
+│   ├── configure_security.py   # Configuração interativa de senha/TLS
+│   ├── migration.py            # Migração de instalações antigas
+│   ├── paths.py                # Caminhos do código, dados e configuração
+│   └── web/
+│       ├── index.html
+│       └── static/
+│           ├── styles.css
+│           └── dashboard.js
+├── scripts/
+│   └── instalar.sh             # Instalação e atualização com systemd
+├── requirements/
+│   ├── base.txt                # Dependências da aplicação
+│   └── dev.txt                 # Dependências dos testes
+├── docs/                       # Guias e imagens em assets/
+├── tests/                      # Testes automatizados
+├── README.md
+└── LICENSE
+```
 
-Arquivos gerados: `mode.json` (modo da instalação), `auth.json` (hashes), `certs/` (certificado e chave privada), `historico.sqlite3` e auxiliares WAL/SHM, `.venv/` e `backup-*`. Todos ficam fora do Git; não publique cópias em outro formato.
+Na execução e instalação são criadas pastas separadas, ignoradas pelo Git:
+
+```text
+data/historico.sqlite3          # Histórico e auxiliares WAL/SHM
+config/mode.json               # Modo escolhido pelo instalador
+config/auth.json               # Hashes das credenciais
+config/certs/                  # Certificado e chave TLS privada
+backups/                       # Cópias do código durante instalações
+.venv/                         # Ambiente Python
+```
+
+Os caminhos são relativos à raiz do projeto/instalação, e não à pasta corrente do terminal. Na instalação, essa raiz é `~/painel-rasp`. Somente `web/static/` é servido como arquivos estáticos; `data/` e `config/` não são publicados.
+
+## Migrar o layout antigo
+
+Atualize o clone e rode `sh scripts/instalar.sh`. O instalador atualiza a unidade para executar `python -m extract_raspberry`, migra o banco para `data/` usando backup SQLite consistente (incluindo WAL) e copia credenciais, modo e certificados para `config/` quando o destino ainda não existe.
+
+A migração não apaga os originais e não sobrescreve arquivos já migrados. Cópias antigas na raiz da instalação podem continuar presentes para recuperação, mas a aplicação nova usa apenas os diretórios novos. Esses arquivos locais antigos não fazem parte do layout versionado. Leia o [guia de operação](docs/operacao.md) antes de restaurar versões antigas.
 
 ## Limitações
 

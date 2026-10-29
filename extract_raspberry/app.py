@@ -6,14 +6,16 @@ from typing import Literal
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
 from starlette.concurrency import run_in_threadpool
 import psutil
 import platform
 import shutil
 import os
-import painel
-from security import Authentication
+from . import metrics as painel
+from .security import Authentication
+from .paths import WEB_DIR, CERT_DIR
 
 
 @asynccontextmanager
@@ -37,7 +39,7 @@ async def lifespan(application):
         collector.join(timeout=5)
 
 
-app = FastAPI(title="Extract-Raspberry", version="2.2.0", lifespan=lifespan)
+app = FastAPI(title="Extract-Raspberry", version="2.3.0", lifespan=lifespan)
 
 
 def secured_openapi():
@@ -53,6 +55,7 @@ def secured_openapi():
 
 
 app.openapi = secured_openapi
+app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 
 @app.middleware("http")
@@ -80,7 +83,7 @@ async def response_headers(request, call_next):
 
 @app.get("/", include_in_schema=False)
 def dashboard():
-    return FileResponse(painel.ROOT / "index.html", media_type="text/html")
+    return FileResponse(WEB_DIR / "index.html", media_type="text/html")
 
 
 @app.get("/api")
@@ -147,8 +150,8 @@ def run():
     parser.add_argument('--mode', choices=['simple', 'protected'],
                         default=os.environ.get('EXTRACT_MODE', 'simple'))
     parser.add_argument("--port", type=int)
-    parser.add_argument('--ssl-certfile', default=str(painel.ROOT / 'certs/cert.pem'))
-    parser.add_argument('--ssl-keyfile', default=str(painel.ROOT / 'certs/key.pem'))
+    parser.add_argument('--ssl-certfile', default=str(CERT_DIR / 'cert.pem'))
+    parser.add_argument('--ssl-keyfile', default=str(CERT_DIR / 'key.pem'))
     args = parser.parse_args()
     if args.mode not in ('simple', 'protected'):
         parser.error('EXTRACT_MODE deve ser simple ou protected.')

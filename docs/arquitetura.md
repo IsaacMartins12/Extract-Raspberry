@@ -24,7 +24,7 @@ A definição de RAM aproveita `MemAvailable`: memória usada como cache que o k
 
 O intervalo normal entre coletas é de aproximadamente 5 segundos. A cada 30 segundos ou mais, o coletor grava **a amostra atual**, não a média de todas as coletas desde a gravação anterior. CPU representa o intervalo entre leituras dos contadores, e RAM/temperatura são valores observados naquela coleta.
 
-Banco: `historico.sqlite3`, na mesma pasta de `painel.py`.
+Banco: `data/historico.sqlite3`, relativo à raiz do projeto. O coletor fica em `extract_raspberry/metrics.py`.
 
 ```sql
 CREATE TABLE metrics (
@@ -118,14 +118,16 @@ O HTML do dashboard não precisa de internet após instalar. A interface interat
 
 ## Autenticação e transporte
 
-O ciclo de vida lê `EXTRACT_MODE` (padrão `simple`). Apenas no modo `protected` carrega `auth.json` antes do banco e do coletor. No modo protegido, arquivo ausente ou inválido impede a inicialização. No modo protegido, o Uvicorn recebe certificado e chave explicitamente e desativa confiança em cabeçalhos de proxy; o middleware recusa requisições cujo esquema não seja HTTPS. Nesse modo não há rota pública de métricas, docs ou esquema OpenAPI. No modo simples, as mesmas rotas são públicas e não carregam credenciais. A proteção dos arquivos locais (404) permanece nos dois modos.
+O ciclo de vida lê `EXTRACT_MODE` (padrão `simple`). Apenas no modo `protected` carrega `config/auth.json` antes do banco e do coletor. No modo protegido, arquivo ausente ou inválido impede a inicialização. No modo protegido, o Uvicorn recebe certificado e chave explicitamente e desativa confiança em cabeçalhos de proxy; o middleware recusa requisições cujo esquema não seja HTTPS. Nesse modo não há rota pública de métricas, docs ou esquema OpenAPI. No modo simples, as mesmas rotas são públicas e não carregam credenciais. A proteção dos arquivos locais (404) permanece nos dois modos.
 
 HTTP Basic atende o navegador e Bearer atende as integrações. A senha usa PBKDF2-HMAC-SHA256, salt aleatório de 16 bytes e 600.000 iterações. O token é aleatório, de alta entropia, e seu hash SHA-256 é armazenado. Comparações de hashes usam `hmac.compare_digest`.
 
-Para não recalcular PBKDF2 em cada polling, credenciais verificadas ficam em um cache de no máximo 32 identificadores HMAC, com chave efêmera do processo, durante 60 segundos. Não há senha em texto puro nesse cache. Mudar `auth.json` exige reiniciar o serviço para invalidar a configuração carregada e o cache.
+Para não recalcular PBKDF2 em cada polling, credenciais verificadas ficam em um cache de no máximo 32 identificadores HMAC, com chave efêmera do processo, durante 60 segundos. Não há senha em texto puro nesse cache. Mudar `config/auth.json` exige reiniciar o serviço para invalidar a configuração carregada e o cache.
 
 Cinco tentativas inválidas com cabeçalho de autenticação por endereço de origem em 60 segundos bloqueiam novas tentativas daquele endereço até o fim da janela (`429`, `Retry-After: 60`). Requisições sem credenciais retornam `401`; HTTP simples retorna `400`. O controle é local ao processo, limitado a 512 endereços, e pode admitir tentativas concorrentes antes de registrar os resultados. Não é uma proteção distribuída contra força bruta.
 
 No modo protegido, o esquema OpenAPI declara Basic e Bearer como alternativas; no simples, não declara autenticação. Todas as respostas incluem `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: no-referrer`.
 
-O instalador salva `mode.json` para preservar o modo em atualizações e grava `--mode` no serviço. Na falta desse arquivo, uma instalação com `auth.json` é reconhecida como protegida; uma instalação nova usa o modo simples. A CLI não infere o modo a partir dos certificados: use `--mode protected` ou `EXTRACT_MODE=protected` ao executar manualmente.
+O instalador salva `config/mode.json` para preservar o modo em atualizações e grava `--mode` no serviço. Na falta desse arquivo, uma instalação com `auth.json` é reconhecida como protegida; uma instalação nova usa o modo simples. A CLI não infere o modo a partir dos certificados: use `--mode protected` ou `EXTRACT_MODE=protected` ao executar manualmente.
+
+A organização do código é centralizada no pacote `extract_raspberry`. `paths.py` resolve caminhos a partir da localização do pacote; a interface é `web/index.html` e seus recursos são servidos por `/static` a partir de `web/static`. O middleware de autenticação também protege esses recursos quando o modo protegido está ativo. A migração do layout antigo é idempotente e usa a API de backup do SQLite para incluir dados no WAL.

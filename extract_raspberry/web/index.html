@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minha Raspberry · Histórico</title>
+<link rel="stylesheet" href="/static/styles.css">
+<main>
+<header>RASPBERRY PI / CENTRAL PESSOAL</header>
+<h1>Sua Pi, ao longo do tempo.</h1>
+<p>Recursos agora e histórico dos últimos 30 dias.</p>
+<div id="cards" aria-live="off"></div>
+<p id="status" role="status">Aguardando primeira leitura...</p>
+<div class="toolbar"><h2>Histórico de recursos</h2><label>Período <select id="period"><option value="1h">Última hora</option><option value="24h">Últimas 24 horas</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option></select></label></div>
+<p id="history-status" role="status">Carregando histórico...</p>
+<section class="chart"><h3>Temperatura do processador · °C</h3><div class="plot"><canvas id="temp" role="img" aria-label="Histórico de temperatura"></canvas></div></section>
+<section class="chart"><h3>Uso da CPU · %</h3><div class="plot"><canvas id="cpu" role="img" aria-label="Histórico de uso da CPU"></canvas></div></section>
+<section class="chart"><h3>Uso da RAM · %</h3><div class="plot"><canvas id="ram" role="img" aria-label="Histórico de uso da RAM"></canvas></div></section>
+<p class="note">Leitura a cada 5 segundos e gravação a cada 30 segundos, mesmo com esta página fechada. Nos períodos maiores, os gráficos mostram médias por intervalo. Lacunas indicam ausência de leituras.</p>
+<footer>Dados armazenados nesta Raspberry · Gráficos sem serviços externos</footer>
+</main>
+<script src="/static/dashboard.js" defer></script>
+</html>

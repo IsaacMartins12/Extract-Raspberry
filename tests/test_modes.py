@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-import painel
-import server
+from extract_raspberry import metrics as painel
+from extract_raspberry import app as server
 
 
 class SimpleModeTests(unittest.TestCase):
@@ -17,13 +17,15 @@ class SimpleModeTests(unittest.TestCase):
              patch.object(painel, 'collect', side_effect=lambda stop: stop.wait(5)), \
              patch.object(server.Authentication, 'load', side_effect=AssertionError('Auth must not load')):
             with TestClient(server.app, base_url='http://testserver') as client:
-                for path in ['/', '/api/history', '/docs', '/openapi.json']:
+                for path in ['/', '/api/history', '/docs', '/openapi.json',
+                             '/static/styles.css', '/static/dashboard.js']:
                     self.assertEqual(client.get(path).status_code, 200)
                 self.assertNotIn('security', client.get('/openapi.json').json())
                 self.assertEqual(client.get('/api').status_code, 503)
                 with patch.object(server.psutil, 'cpu_percent', return_value=0):
                     self.assertEqual(client.get('/status').status_code, 200)
-                for path in ['/auth.json', '/certs/key.pem', '/historico.sqlite3']:
+                for path in ['/auth.json', '/certs/key.pem', '/historico.sqlite3',
+                             '/config/auth.json', '/config/certs/key.pem', '/data/historico.sqlite3']:
                     self.assertEqual(client.get(path).status_code, 404)
 
     def test_invalid_mode_does_not_start_anonymous_server(self):

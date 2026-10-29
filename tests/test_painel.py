@@ -14,9 +14,9 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import painel
-import server
-from security import Authentication, credentials
+from extract_raspberry import metrics as painel
+from extract_raspberry import app as server
+from extract_raspberry.security import Authentication, credentials
 
 TEST_CREDENTIALS, TEST_TOKEN = credentials("tester", "test-password-12345")
 
@@ -107,6 +107,10 @@ class HttpTests(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('Sua Pi', response.text)
+        self.assertIn('/static/styles.css', response.text)
+        self.assertIn('/static/dashboard.js', response.text)
+        self.assertEqual(self.client.get('/static/styles.css').status_code, 200)
+        self.assertEqual(self.client.get('/static/dashboard.js').status_code, 200)
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
         with patch.object(painel, 'LATEST', {'ts': 123, 'cpu': 12}):
             self.assertEqual(self.client.get('/api').json()['cpu'], 12)

@@ -14,10 +14,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import uvicorn
-import painel
-import security
-import server
-from configurar_seguranca import certificate
+from extract_raspberry import metrics as painel
+from extract_raspberry import security
+from extract_raspberry import app as server
+from extract_raspberry.configure_security import certificate
 
 
 @unittest.skipUnless(shutil.which('openssl'), 'OpenSSL não disponível no PATH')

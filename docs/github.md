@@ -11,7 +11,7 @@ No PowerShell do Windows, para desenvolvimento e testes:
 ```powershell
 git clone https://github.com/IsaacMartins12/Extract-Raspberry.git
 cd Extract-Raspberry
-git switch -c codex/minha-alteracao
+git switch -c minha-alteracao
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m unittest discover -s tests -v
@@ -50,11 +50,11 @@ Antes da integração em `main`, para testar a branch desta atualização:
 
 ```bash
 git fetch origin
-git switch --track origin/codex/dashboard-historico-api
+git switch --track origin/dashboard-historico-api
 sh instalar.sh
 ```
 
-Se a branch já existir localmente, use `git switch codex/dashboard-historico-api` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
+Se a branch já existir localmente, use `git switch dashboard-historico-api` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
 
 ## Referências
 

@@ -34,7 +34,8 @@ class TLSTests(unittest.TestCase):
             config = uvicorn.Config(server.app, log_level='critical',
                 ssl_certfile=str(cert), ssl_keyfile=str(key), proxy_headers=False)
             process = uvicorn.Server(config)
-            with patch.object(painel, 'DB', folder / 'history.sqlite3'), \
+            with patch.dict(os.environ, {'EXTRACT_MODE': 'protected'}), \
+                 patch.object(painel, 'DB', folder / 'history.sqlite3'), \
                  patch.object(painel, 'collect', side_effect=lambda stop: stop.wait(10)), \
                  patch.object(server.Authentication, 'load', return_value=security.Authentication(data)):
                 thread = threading.Thread(target=process.run, kwargs={'sockets': [sock]}, daemon=True)

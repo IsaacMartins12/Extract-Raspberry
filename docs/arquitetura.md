@@ -112,13 +112,13 @@ Esses campos não são renomeados para os campos de `/api`. A RAM usada do psuti
 
 Consultar `/status` não grava uma amostra extra no histórico nem interrompe o coletor. As rotas síncronas são atendidas pelo pool de threads do FastAPI. `/api` consulta o último valor em memória; `/api/history` consulta SQLite. Os horários das leituras podem diferir entre as rotas.
 
-O serviço e as execuções manuais agora usam HTTPS em 8443. Existe apenas uma aplicação: todas as rotas usam a porta escolhida para aquele processo. Clientes antigos em HTTP nas portas 8000 ou 8080 precisam migrar para HTTPS e fornecer credenciais. Não execute uma cópia antiga sem proteção para contornar essa mudança.
+O modo simples usa HTTP em 8080; o protegido usa HTTPS em 8443. Existe apenas uma aplicação: todas as rotas usam a porta escolhida para aquele processo. Clientes em 8000 precisam ajustar a porta; clientes que migram para o modo protegido precisam usar HTTPS e fornecer credenciais. Não execute uma cópia antiga sem proteção para contornar essa mudança.
 
 O HTML do dashboard não precisa de internet após instalar. A interface interativa padrão do FastAPI em `/docs` pode carregar assets de CDN; o JSON de `/openapi.json` permanece local.
 
 ## Autenticação e transporte
 
-O ciclo de vida carrega `auth.json` antes do banco e do coletor. Arquivo ausente ou inválido impede a inicialização. O Uvicorn recebe certificado e chave explicitamente e desativa confiança em cabeçalhos de proxy; o middleware recusa requisições cujo esquema não seja HTTPS. Não há rota pública de métricas, docs ou esquema OpenAPI.
+O ciclo de vida lê `EXTRACT_MODE` (padrão `simple`). Apenas no modo `protected` carrega `auth.json` antes do banco e do coletor. No modo protegido, arquivo ausente ou inválido impede a inicialização. No modo protegido, o Uvicorn recebe certificado e chave explicitamente e desativa confiança em cabeçalhos de proxy; o middleware recusa requisições cujo esquema não seja HTTPS. Nesse modo não há rota pública de métricas, docs ou esquema OpenAPI. No modo simples, as mesmas rotas são públicas e não carregam credenciais. A proteção dos arquivos locais (404) permanece nos dois modos.
 
 HTTP Basic atende o navegador e Bearer atende as integrações. A senha usa PBKDF2-HMAC-SHA256, salt aleatório de 16 bytes e 600.000 iterações. O token é aleatório, de alta entropia, e seu hash SHA-256 é armazenado. Comparações de hashes usam `hmac.compare_digest`.
 
@@ -126,4 +126,6 @@ Para não recalcular PBKDF2 em cada polling, credenciais verificadas ficam em um
 
 Cinco tentativas inválidas com cabeçalho de autenticação por endereço de origem em 60 segundos bloqueiam novas tentativas daquele endereço até o fim da janela (`429`, `Retry-After: 60`). Requisições sem credenciais retornam `401`; HTTP simples retorna `400`. O controle é local ao processo, limitado a 512 endereços, e pode admitir tentativas concorrentes antes de registrar os resultados. Não é uma proteção distribuída contra força bruta.
 
-O esquema OpenAPI declara Basic e Bearer como alternativas. Todas as respostas incluem `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: no-referrer`.
+No modo protegido, o esquema OpenAPI declara Basic e Bearer como alternativas; no simples, não declara autenticação. Todas as respostas incluem `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e `Referrer-Policy: no-referrer`.
+
+O instalador salva `mode.json` para preservar o modo em atualizações e grava `--mode` no serviço. Na falta desse arquivo, uma instalação com `auth.json` é reconhecida como protegida; uma instalação nova usa o modo simples. A CLI não infere o modo a partir dos certificados: use `--mode protected` ou `EXTRACT_MODE=protected` ao executar manualmente.

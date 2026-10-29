@@ -1,3 +1,4 @@
+import os
 import base64
 import json
 import tempfile
@@ -57,6 +58,9 @@ class AuthenticationTests(unittest.TestCase):
 
 class ProtectedRoutesTests(unittest.TestCase):
     def setUp(self):
+        self.mode = patch.dict(os.environ, {"EXTRACT_MODE": "protected"})
+        self.mode.start()
+        self.addCleanup(self.mode.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.db = patch.object(painel, 'DB', Path(self.temp.name) / 'test.sqlite3')
         self.collect = patch.object(painel, 'collect', side_effect=lambda stop: stop.wait(5))

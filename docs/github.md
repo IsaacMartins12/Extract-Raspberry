@@ -24,9 +24,9 @@ O monitor real depende do Linux; os testes podem usar banco temporário e leitur
 ```powershell
 git status --short
 git diff
-git add server.py painel.py index.html instalar.sh requirements.txt requirements-dev.txt README.md docs tests .gitignore .gitattributes
+git add server.py painel.py security.py configurar_seguranca.py index.html instalar.sh requirements.txt requirements-dev.txt README.md docs tests .gitignore .gitattributes
 git diff --cached --stat
-git commit -m "Adiciona dashboard e historico preservando API status"
+git commit -m "Adiciona autenticacao e HTTPS ao monitor"
 git push -u origin HEAD
 ```
 
@@ -34,7 +34,7 @@ Configure `git config user.name` e `git config user.email` com seus dados se o G
 
 Após o push, abra um pull request comparando sua branch com `main`, confira o diff e os testes e integre quando estiver pronto. Um push no GitHub não instala o programa na Raspberry.
 
-O `.gitignore` exclui o histórico SQLite, WAL/SHM, backups, ambiente virtual, caches e arquivos `.env`. Ele não remove arquivos já rastreados. Não é necessário copiar o histórico da placa para publicar o projeto. Preserve `LICENSE` e o aviso de copyright existente.
+O `.gitignore` exclui o histórico SQLite, WAL/SHM, backups, ambiente virtual, caches, arquivos `.env`, `auth.json`, certificados e chaves privadas. Ele não remove arquivos já rastreados. Não é necessário copiar o histórico da placa para publicar o projeto. Preserve `LICENSE` e o aviso de copyright existente.
 
 ## Atualizar a Raspberry depois da integração
 
@@ -50,11 +50,11 @@ Antes da integração em `main`, para testar a branch desta atualização:
 
 ```bash
 git fetch origin
-git switch --track origin/dashboard-historico-api
+git switch --track origin/autenticacao-https
 sh instalar.sh
 ```
 
-Se a branch já existir localmente, use `git switch dashboard-historico-api` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
+Se a branch já existir localmente, use `git switch autenticacao-https` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
 
 ## Referências
 

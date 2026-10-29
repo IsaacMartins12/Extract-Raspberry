@@ -19,3 +19,10 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Credenciais e TLS locais (nunca publicar)
+auth.json
+.auth-*
+certs/
+*.pem
+*.key

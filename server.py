@@ -6,15 +6,19 @@ from typing import Literal
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.openapi.utils import get_openapi
+from starlette.concurrency import run_in_threadpool
 import psutil
 import platform
 import shutil
 import os
 import painel
+from security import Authentication
 
 
 @asynccontextmanager
 async def lifespan(application):
+    application.state.authentication = Authentication.load()
     painel.init_db()
     with painel.LOCK:
         painel.LATEST = None
@@ -28,14 +32,41 @@ async def lifespan(application):
         collector.join(timeout=5)
 
 
-app = FastAPI(title="Extract-Raspberry", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="Extract-Raspberry", version="2.1.0", lifespan=lifespan)
+
+
+def secured_openapi():
+    if not app.openapi_schema:
+        schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+        schema.setdefault('components', {})['securitySchemes'] = {
+            'BasicAuth': {'type': 'http', 'scheme': 'basic'},
+            'BearerAuth': {'type': 'http', 'scheme': 'bearer'}}
+        schema['security'] = [{'BasicAuth': []}, {'BearerAuth': []}]
+        app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = secured_openapi
 
 
 @app.middleware("http")
 async def response_headers(request, call_next):
-    response = await call_next(request)
+    if request.url.scheme != 'https':
+        response = JSONResponse(status_code=400, content={'error': 'Use HTTPS para acessar o monitor.'})
+    else:
+        status = await run_in_threadpool(request.app.state.authentication.authenticate,
+            request.headers.get('authorization'), request.client.host if request.client else 'unknown')
+        if status == 200:
+            response = await call_next(request)
+        else:
+            response = JSONResponse(status_code=status,
+                content={'error': 'Muitas tentativas. Aguarde 60 segundos.' if status == 429 else 'Autenticação necessária.'},
+                headers={'Retry-After': '60'} if status == 429 else
+                    {'WWW-Authenticate': 'Basic realm="Extract-Raspberry", charset="UTF-8"'})
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'no-referrer'
     return response
 
 
@@ -101,14 +132,18 @@ def system_status():
     }
 
 
-def run(default_port=8000):
+def run(default_port=8443):
     import uvicorn
     parser = argparse.ArgumentParser(description="Extract-Raspberry: API, dashboard e histórico")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=default_port)
+    parser.add_argument('--ssl-certfile', default=str(painel.ROOT / 'certs/cert.pem'))
+    parser.add_argument('--ssl-keyfile', default=str(painel.ROOT / 'certs/key.pem'))
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    uvicorn.run(app, host=args.host, port=args.port, workers=1)
+    uvicorn.run(app, host=args.host, port=args.port, workers=1,
+                ssl_certfile=args.ssl_certfile, ssl_keyfile=args.ssl_keyfile,
+                proxy_headers=False, server_header=False)
 
 
 if __name__ == "__main__":

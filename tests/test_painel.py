@@ -1,3 +1,4 @@
+import base64
 import json
 import sqlite3
 import sys
@@ -14,6 +15,9 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import painel
 import server
+from security import Authentication, credentials
+
+TEST_CREDENTIALS, TEST_TOKEN = credentials("tester", "test-password-12345")
 
 
 class StorageTests(unittest.TestCase):
@@ -83,12 +87,15 @@ class HttpTests(unittest.TestCase):
         self.collect_patch = patch.object(painel, 'collect', side_effect=lambda stop: stop.wait(5))
         self.db_patch.start()
         self.collect_patch.start()
-        self.client_context = TestClient(server.app)
+        self.auth_patch = patch.object(server.Authentication, "load", return_value=Authentication(TEST_CREDENTIALS))
+        self.auth_patch.start()
+        self.client_context = TestClient(server.app, base_url="https://testserver", headers={"Authorization": "Basic " + base64.b64encode(b"tester:test-password-12345").decode()})
         self.client = self.client_context.__enter__()
 
     def tearDown(self):
         self.client_context.__exit__(None, None, None)
         self.collect_patch.stop()
+        self.auth_patch.stop()
         self.db_patch.stop()
         self.temp.cleanup()
 

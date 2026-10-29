@@ -98,4 +98,4 @@ def history(period):
 
 if __name__ == '__main__':
     from server import run
-    run(default_port=8080)
+    run()

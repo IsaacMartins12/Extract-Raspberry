@@ -8,9 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-import painel
-import security
-import server
+from extract_raspberry import metrics as painel
+from extract_raspberry import security
+from extract_raspberry import app as server
 
 DATA, TOKEN = security.credentials('admin', 'strong-test-password-123')
 
@@ -79,7 +79,8 @@ class ProtectedRoutesTests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_all_routes_require_credentials(self):
-        for path in ['/', '/api', '/status', '/api/history', '/docs', '/openapi.json']:
+        for path in ['/', '/api', '/status', '/api/history', '/docs', '/openapi.json',
+                     '/static/styles.css', '/static/dashboard.js']:
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 401)

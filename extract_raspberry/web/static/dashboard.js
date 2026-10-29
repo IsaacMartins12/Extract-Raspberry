@@ -1,37 +1,3 @@
-<!doctype html>
-<html lang="pt-BR">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Minha Raspberry · Histórico</title>
-<style>
-:root{color-scheme:dark;--bg:#10151e;--panel:#1a2331;--line:#2b394d;--text:#edf2fa;--muted:#a6b3c5;--green:#6ee7b7}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui}
-main{max-width:1160px;margin:40px auto;padding:24px}header{color:var(--green);font-size:12px;letter-spacing:3px}
-h1{font-size:clamp(30px,5vw,48px);margin:12px 0}p,small{color:var(--muted)}
-#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin:28px 0}
-article,.chart{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
-strong{display:block;font-size:24px;margin-top:12px}.toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-top:36px}
-h2{font-size:20px;margin:0}select{font:inherit;color:var(--text);background:var(--panel);padding:10px;border:1px solid var(--line);border-radius:10px}
-.chart{margin:18px 0}.chart h3{font-size:15px;margin:0 0 8px}.plot{height:210px;position:relative}
-canvas{display:block;width:100%;height:100%}#status,#history-status,.note{font-size:13px;line-height:1.6}
-#status{min-height:22px}.error{color:#ffb4a2}footer{color:var(--muted);font-size:12px;margin-top:28px}
-@media(max-width:500px){main{padding:16px;margin:20px auto}.chart{padding:16px}.plot{height:185px}}
-</style>
-<main>
-<header>RASPBERRY PI / CENTRAL PESSOAL</header>
-<h1>Sua Pi, ao longo do tempo.</h1>
-<p>Recursos agora e histórico dos últimos 30 dias.</p>
-<div id="cards" aria-live="off"></div>
-<p id="status" role="status">Aguardando primeira leitura...</p>
-<div class="toolbar"><h2>Histórico de recursos</h2><label>Período <select id="period"><option value="1h">Última hora</option><option value="24h">Últimas 24 horas</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option></select></label></div>
-<p id="history-status" role="status">Carregando histórico...</p>
-<section class="chart"><h3>Temperatura do processador · °C</h3><div class="plot"><canvas id="temp" role="img" aria-label="Histórico de temperatura"></canvas></div></section>
-<section class="chart"><h3>Uso da CPU · %</h3><div class="plot"><canvas id="cpu" role="img" aria-label="Histórico de uso da CPU"></canvas></div></section>
-<section class="chart"><h3>Uso da RAM · %</h3><div class="plot"><canvas id="ram" role="img" aria-label="Histórico de uso da RAM"></canvas></div></section>
-<p class="note">Leitura a cada 5 segundos e gravação a cada 30 segundos, mesmo com esta página fechada. Nos períodos maiores, os gráficos mostram médias por intervalo. Lacunas indicam ausência de leituras.</p>
-<footer>Dados armazenados nesta Raspberry · Gráficos sem serviços externos</footer>
-</main>
-<script>
 let series=null, generation=0;
 const el=id=>document.getElementById(id);
 const number=(value,digits=1)=>Number(value).toLocaleString('pt-BR',{minimumFractionDigits:digits,maximumFractionDigits:digits});
@@ -103,5 +69,3 @@ async function loadHistory(){
 el('period').addEventListener('change',()=>{series=null;redraw();el('history-status').textContent='Carregando período...';loadHistory()});
 new ResizeObserver(redraw).observe(el('temp').parentElement);
 live();loadHistory();setInterval(loadHistory,30000);
-</script>
-</html>

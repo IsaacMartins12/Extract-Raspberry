@@ -13,7 +13,7 @@ git clone https://github.com/IsaacMartins12/Extract-Raspberry.git
 cd Extract-Raspberry
 git switch -c minha-alteracao
 python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements-dev.txt
+.venv\Scripts\python -m pip install -r requirements/dev.txt
 .venv\Scripts\python -m unittest discover -s tests -v
 ```
 
@@ -24,7 +24,7 @@ O monitor real depende do Linux; os testes podem usar banco temporário e leitur
 ```powershell
 git status --short
 git diff
-git add server.py painel.py security.py configurar_seguranca.py index.html instalar.sh requirements.txt requirements-dev.txt README.md docs tests .gitignore .gitattributes
+git add extract_raspberry scripts requirements README.md docs tests .gitignore .gitattributes
 git diff --cached --stat
 git commit -m "Adiciona autenticacao e HTTPS ao monitor"
 git push -u origin HEAD
@@ -43,18 +43,18 @@ No clone da Raspberry:
 ```bash
 cd ~/src/monitor-rasp
 git pull --ff-only
-sh instalar.sh
+sh scripts/instalar.sh
 ```
 
 Antes da integração em `main`, para testar a branch desta atualização:
 
 ```bash
 git fetch origin
-git switch --track origin/modos-simples-protegido
-sh instalar.sh
+git switch --track origin/reorganiza-estrutura
+sh scripts/instalar.sh
 ```
 
-Se a branch já existir localmente, use `git switch modos-simples-protegido` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
+Se a branch já existir localmente, use `git switch reorganiza-estrutura` e `git pull --ff-only`. Não force a troca se houver alterações locais; revise-as primeiro. Consulte o README para requisitos do ambiente virtual e o guia de operação para preservar e copiar o banco.
 
 ## Referências
 

@@ -5,14 +5,14 @@
 Novas instalações usam o modo simples, em `http://IP:8080`, sem credenciais ou certificado. Para escolher explicitamente, execute na pasta do clone:
 
 ```bash
-sh instalar.sh --mode simple
+sh scripts/instalar.sh --mode simple
 ```
 
 Para habilitar proteção:
 
 ```bash
 sudo apt install -y openssl
-sh instalar.sh --mode protected
+sh scripts/instalar.sh --mode protected
 ```
 
 O segundo comando configura HTTPS em `https://IP:8443`, senha e token. As instruções restantes deste guia se aplicam **ao modo protegido**. Trocar para o modo simples desativa autenticação e TLS, sem apagar histórico ou credenciais existentes. Atualizações sem `--mode` preservam a escolha; instalações protegidas anteriores também são preservadas. Não ative o modo simples para um serviço acessível pela internet.
@@ -21,9 +21,9 @@ O segundo comando configura HTTPS em `https://IP:8443`, senha e token. As instru
 
 O instalador pede usuário e senha (mínimo de 12 caracteres), sem exibir a senha digitada. O login do dashboard é HTTP Basic: uma janela nativa do navegador pede as credenciais. Não há formulário de cadastro ou banco de usuários. Há apenas uma identidade por instalação.
 
-Um token de API aleatório é mostrado uma única vez no terminal. Guarde-o em um gerenciador de senhas. `auth.json` contém apenas hashes, salt e nome do usuário, e é criado com permissão `0600` no Linux. A chave TLS privada também tem `0600`; a pasta `certs` é criada com `0700`.
+Um token de API aleatório é mostrado uma única vez no terminal. Guarde-o em um gerenciador de senhas. `config/auth.json` contém apenas hashes, salt e nome do usuário, e é criado com permissão `0600` no Linux. A chave TLS privada também tem `0600`; a pasta `certs` é criada com `0700`.
 
-Na reinstalação, os arquivos existentes são preservados. Nunca envie `auth.json`, tokens, senhas ou `certs/key.pem` ao GitHub. O `.gitignore` os exclui, mas isso não protege arquivos já rastreados ou cópias com outro nome.
+Na reinstalação, os arquivos existentes são preservados. Nunca envie `config/auth.json`, tokens, senhas ou `config/certs/key.pem` ao GitHub. O `.gitignore` os exclui, mas isso não protege arquivos já rastreados ou cópias com outro nome.
 
 ## Certificado local e confiança
 
@@ -34,13 +34,13 @@ Para acessar por IP, use um IP incluído nesses SANs. Uma reserva DHCP no rotead
 Copie **somente o certificado público** para o computador por um canal já confiável, como a conexão SSH cuja identidade você verificou. Exemplo no PowerShell:
 
 ```powershell
-scp pi@IP_DA_RASPBERRY:painel-rasp/certs/cert.pem .\raspberry-cert.pem
+scp pi@IP_DA_RASPBERRY:painel-rasp/config/certs/cert.pem .\raspberry-cert.pem
 ```
 
 Confira a impressão digital SHA-256 no SSH:
 
 ```bash
-openssl x509 -in ~/painel-rasp/certs/cert.pem -noout -fingerprint -sha256
+openssl x509 -in ~/painel-rasp/config/certs/cert.pem -noout -fingerprint -sha256
 ```
 
 Compare com a cópia local usando `openssl x509 -in raspberry-cert.pem -noout -fingerprint -sha256`, se tiver OpenSSL instalado. Depois importe o certificado público no armazenamento de confiança do sistema ou navegador que você usa. A interface exata varia por navegador e sistema; inclua apenas o certificado que conferiu. Não distribua a chave privada e não ignore permanentemente erros de certificado.
@@ -52,7 +52,7 @@ Para clientes de API, forneça o certificado explicitamente com `--cacert`, sem 
 Na própria Raspberry, `curl` solicita a senha sem colocá-la na linha de comando:
 
 ```bash
-curl --cacert ~/painel-rasp/certs/cert.pem --user admin https://127.0.0.1:8443/status
+curl --cacert ~/painel-rasp/config/certs/cert.pem --user admin https://127.0.0.1:8443/status
 ```
 
 Troque `admin` pelo usuário escolhido. No computador remoto, use o caminho da cópia do certificado e o endereço da placa. HTTPS é obrigatório, mesmo ao consultar a API por senha.
@@ -87,7 +87,7 @@ No SSH, como o usuário normal da instalação:
 
 ```bash
 cd ~/painel-rasp
-.venv/bin/python configurar_seguranca.py --reset-auth
+.venv/bin/python -m extract_raspberry.configure_security --reset-auth
 sudo systemctl restart painel-rasp
 ```
 
@@ -99,14 +99,14 @@ Antes de expirar, ou se mudar o nome/IP usado:
 
 ```bash
 cd ~/painel-rasp
-.venv/bin/python configurar_seguranca.py --renew-cert
+.venv/bin/python -m extract_raspberry.configure_security --renew-cert
 sudo systemctl restart painel-rasp
 ```
 
 O comando substitui certificado e chave. Copie, confira e estabeleça confiança no novo certificado nos clientes. A renovação não é automática e a reinstalação preserva o certificado existente, mesmo se estiver perto de expirar. Para verificar as datas:
 
 ```bash
-openssl x509 -in ~/painel-rasp/certs/cert.pem -noout -dates
+openssl x509 -in ~/painel-rasp/config/certs/cert.pem -noout -dates
 ```
 
 É possível usar um certificado emitido por uma autoridade pública com `--ssl-certfile` e `--ssl-keyfile` no serviço, mas obter e renovar esse certificado, configurar DNS e proteger o acesso externo ficam fora do instalador local. A unidade systemd é recriada pelo instalador; registre essas alterações antes de atualizar.

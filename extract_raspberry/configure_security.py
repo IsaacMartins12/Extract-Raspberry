@@ -8,9 +8,10 @@ import socket
 import subprocess
 import tempfile
 from pathlib import Path
-from security import Authentication, credentials
+from .security import Authentication, credentials
+from .paths import CONFIG_DIR, CERT_DIR
 
-ROOT = Path(__file__).resolve().parent
+ROOT = CONFIG_DIR
 
 
 def certificate(cert, key, hosts):
@@ -45,6 +46,7 @@ def main():
     parser.add_argument('--renew-cert', action='store_true', help='Gerar novo certificado local')
     args = parser.parse_args()
     os.umask(0o077)
+    ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
     path = ROOT / 'auth.json'
     if not path.exists() or args.reset_auth:
         user = input('Usuário do painel [admin]: ').strip() or 'admin'
@@ -65,7 +67,7 @@ def main():
     else:
         Authentication(json.loads(path.read_text(encoding='utf-8')))
         print('Credenciais existentes preservadas.')
-    cert, key = ROOT / 'certs/cert.pem', ROOT / 'certs/key.pem'
+    cert, key = CERT_DIR / 'cert.pem', CERT_DIR / 'key.pem'
     if args.renew_cert or not (cert.exists() and key.exists()):
         hosts = {socket.gethostname(), socket.gethostname() + '.local'}
         try:

@@ -6,9 +6,9 @@ import json
 import secrets
 import threading
 import time
-from pathlib import Path
+from .paths import CONFIG_DIR
 
-CONFIG_PATH = Path(__file__).resolve().parent / 'auth.json'
+CONFIG_PATH = CONFIG_DIR / 'auth.json'
 ITERATIONS = 600000
 
 
@@ -49,7 +49,7 @@ class Authentication:
         try:
             return cls(json.loads(CONFIG_PATH.read_text(encoding='utf-8')))
         except (OSError, ValueError, KeyError, TypeError) as error:
-            raise RuntimeError('Configure as credenciais com configurar_seguranca.py antes de iniciar.') from error
+            raise RuntimeError('Configure as credenciais com python -m extract_raspberry.configure_security antes de iniciar.') from error
 
     def authenticate(self, header, address):
         if not header or len(header) > 4096:

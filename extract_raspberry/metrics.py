@@ -6,8 +6,9 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-DB = ROOT / 'historico.sqlite3'
+from .paths import DATA_DIR
+
+DB = DATA_DIR / 'historico.sqlite3'
 LOCK = threading.Lock()
 LATEST = None
 PERIODS = {'1h': (3600, 30), '24h': (86400, 180),
@@ -15,6 +16,7 @@ PERIODS = {'1h': (3600, 30), '24h': (86400, 180),
 
 
 def init_db():
+    DB.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(DB)) as db:
         db.execute('PRAGMA journal_mode=WAL')
         db.execute('''CREATE TABLE IF NOT EXISTS metrics (
@@ -94,8 +96,3 @@ def history(period):
     points = [dict(ts=r[1], cpu=r[2], temp=r[3], ram=r[4], samples=r[5]) for r in rows]
     return dict(points=points, start=start, end=end, bucket=bucket,
                 total_samples=count, first=first)
-
-
-if __name__ == '__main__':
-    from server import run
-    run()

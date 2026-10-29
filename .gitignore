@@ -27,3 +27,8 @@ mode.json
 certs/
 *.pem
 *.key
+
+# Diretórios gerados na execução e instalação
+data/
+config/
+backups/

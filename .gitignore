@@ -1,0 +1,21 @@
+# Histórico e arquivos auxiliares do SQLite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Backups locais e Python
+backup-*/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Configurações locais e credenciais
+.env
+.env.*
+!.env.example
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
